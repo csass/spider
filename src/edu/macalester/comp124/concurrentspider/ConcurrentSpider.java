@@ -85,6 +85,7 @@ public class ConcurrentSpider implements Runnable {
 			if (!helper.isImage(url2)) {
 				// you make this work: process the page here
 
+
 			}
 		}
 	}
