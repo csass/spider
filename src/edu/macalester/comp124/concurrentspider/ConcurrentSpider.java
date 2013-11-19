@@ -45,50 +45,54 @@ public class ConcurrentSpider implements Runnable {
 		sharedData = data;
 		beginningURL = startURL;
 	}
-	
-	/**
-	 * The method that is executed when you 'start()' a thread with this class.
-	 * Thus, the thread behavior is here in this run method.
-	 */
-	public void run() {
-		// To get things started, we need one thread to put the starting point
-		// URL onto the work queue.
-		if (beginningURL != null) {  
-			try {
-				sharedData.getWork().put(beginningURL);
-			} catch (InterruptedException e) {
-				// catch errors that can occur from the 'put' to the shared queue
-				System.out.println("Error putting data into work queue");
-				e.printStackTrace();
-			}
-		}
-		
-		while (urlCount <= maxUrls) {  // each thread does a certain amount of 'work'
-			String url;
 
-				// you make this work: grab from the work queue and process the page
+    /**
+     * The method that is executed when you 'start()' a thread with this class.
+     * Thus, the thread behavior is here in this run method.
+     */
+    public void run() {
+        // To get things started, we need one thread to put the starting point
+        // URL onto the work queue.
+        if (beginningURL != null) {
+            try {
+                sharedData.getWork().put(beginningURL);
+            } catch (InterruptedException e) {
+                // catch errors that can occur from the 'put' to the shared queue
+                System.out.println("Error putting data into work queue");
+                e.printStackTrace();
+            }
+        }
 
-			urlCount++;    
-		}
-		System.err.println("ConcurrentSpider done with URLs");
-	}
-		
-	/**
-	 * Retrieves content from a url and processes that content. 
-	 * @param baseUrl
-	 * @param html
-	 */
-	public void processPage(String url) {
-		String html = helper.retrieve(url);
-		for (String url2 : helper.extractLinks(url, html)) {
-			System.out.println("next URL on " + url + ":" + url2);
-			if (!helper.isImage(url2)) {
-				// you make this work: process the page here
+        while (urlCount <= maxUrls) {  // each thread does a certain amount of 'work'
+            String url;
+            url = sharedData.getWork().poll();
+            if (url == null) {
+                break;
+            }
+            if (!(sharedData.getFinished().contains(url))) {
+                processPage(url);
+            }
+            urlCount++;
+        }
+        System.err.println("ConcurrentSpider done with URLs");
+    }
 
-
-			}
-		}
-	}
-
-
+    /**
+     * Retrieves content from a url and processes that content.
+     * @param baseUrl
+     * @param html
+     */
+    public void processPage(String url) {
+        sharedData.getFinished().add(url);
+        String html = helper.retrieve(url);
+        for (String url2 : helper.extractLinks(url, html)) {
+            System.out.println("next URL on " + url + ":" + url2);
+            if (!helper.isImage(url2)) {
+                if (!(sharedData.getFinished().contains(url2))) {
+                    sharedData.getWork().add(url2);
+                    sharedData.getUrlCounter().countWord(url2);
+                }
+            }
+        }
+    }
 }
